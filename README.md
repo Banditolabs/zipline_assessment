@@ -9,15 +9,15 @@ This command-line Ruby program reads a CSV file and identifies rows that may rep
 The program is executed from the command line like so:
 
 ```
-ruby bin/match_users.rb <matching_type> <input_filename.csv>
+ruby record_matcher.rb <matching_type> <input_filename.csv>
 ```
 
 ### Examples
 
 ```
-ruby bin/match_users email input1.csv
-ruby bin/match_users phone input2.csv
-ruby bin/match_users email_or_phone input3.csv
+ruby record_matcher.rb email input1.csv
+ruby record_matcher.rb phone input2.csv
+ruby record_matcher.rb phone input3.csv
 ```
 
 Matching types can only be entered exactly **email**, **phone**, **email_or_phone**.

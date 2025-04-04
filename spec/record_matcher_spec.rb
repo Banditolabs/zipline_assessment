@@ -1,6 +1,6 @@
 require "csv"
 require "fileutils"
-require_relative "../lib/record_matcher"
+require_relative "../record_matcher.rb"
 
 RSpec.describe RecordMatcher do
   let(:tmp_dir) { File.expand_path("tmp", __dir__) }
