@@ -90,27 +90,25 @@ All three users are grouped under `user_id` 1 because of overlapping phone/email
 
 ---
 
-## Evaluation Criteria
+## Scoring Guide
 
 ### Running the Program
 
-- Can it be run from the command line as documented?
+- Does this run from command line as instructed?
 - Does it run without errors?
 
-### Matching Logic
+### Implement Matching Types
 
-- Can it match on any individual column?
-- Can it group based on **multiple matching criteria**?
-- Does it handle **overlapping matches** correctly?
+- Can it match on a single column?
+- Do similar columns match to one another?
+- Are you able to use multiple matchers?
 
 ### Output
 
-- Is the original data preserved?
-- Are matching rows assigned the same `user_id`?
-- Is the output CSV formatted correctly?
+- Is there a csv file?
+- Are there IDs prepended to each row?
 
 ### Code Quality
 
-- Is the code clean and readable?
-- Is logic modular and maintainable?
-- Are assumptions clearly handled?
+- Is it readable?
+- Is it consistent?

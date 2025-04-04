@@ -16,7 +16,10 @@ RSpec.describe RecordMatcher do
   def write_csv(filename, headers, rows)
     CSV.open(filename, "w") do |csv|
       csv << headers
-      rows.each { |row| csv << row }
+      rows.each do |row|
+        padded_row = row + Array.new(headers.length - row.length, "")
+        csv << padded_row
+      end
     end
   end
 
@@ -24,7 +27,7 @@ RSpec.describe RecordMatcher do
     CSV.read(file_path, headers: true).map(&:to_h)
   end
 
-  it "assigns user_id to records with matching emails" do
+  it "uses MATCH_STRATEGIES[:email] to group records by shared email values" do
     path = File.join(tmp_dir, "emails.csv")
     write_csv(path, ["FirstName", "Email1"], [
       ["John", "john@example.com"],
@@ -42,7 +45,7 @@ RSpec.describe RecordMatcher do
     expect(output[2]["user_id"]).to be_nil
   end
 
-  it "assigns user_id to records with matching phones" do
+  it "uses MATCH_STRATEGIES[:phone] to group records by shared phone numbers" do
     path = File.join(tmp_dir, "phones.csv")
     write_csv(path, ["FirstName", "Phone1"], [
       ["Bob", "(555) 123-4567"],
@@ -60,7 +63,7 @@ RSpec.describe RecordMatcher do
     expect(output[2]["user_id"]).to be_nil
   end
 
-  it "assigns same user_id when email or phone matches" do
+  it "uses MATCH_STRATEGIES[:email_or_phone] to group records by either value" do
     path = File.join(tmp_dir, "email_or_phone.csv")
     write_csv(path, ["FirstName", "Email1", "Phone1"], [
       ["John", "john@example.com", "1234567890"],
@@ -78,6 +81,42 @@ RSpec.describe RecordMatcher do
     expect(output[1]["user_id"]).to eq("1")
     expect(output[2]["user_id"]).to eq("1")
     expect(output[3]["user_id"]).to be_nil
+  end
+
+  it "normalizes phone numbers before matching" do
+    path = File.join(tmp_dir, "normalize.csv")
+    write_csv(path, ["FirstName", "Phone1"], [
+      ["John", "(123) 456-7890"],
+      ["Jane", "123.456.7890"],
+      ["Jack", "1234567890"]
+    ])
+
+    matcher = RecordMatcher.new("phone", path)
+    matcher.match
+
+    output = read_output(path.sub(".csv", "_with_user_ids.csv"))
+    user_ids = output.map { |row| row["user_id"] }.uniq.compact
+
+    expect(user_ids.size).to eq(1)
+  end
+
+  it "matches records using any email_or_phone column" do
+    path = File.join(tmp_dir, "multi_column.csv")
+    write_csv(path, ["FirstName", "Email1", "Email2", "Phone1", "Phone2"], [
+      ["John", "", "shared@example.com", "", ""],
+      ["Jane", "shared@example.com", "", "", ""],
+      ["Alice", "", "", "1234567890", ""],
+      ["Bob", "", "", "", "1234567890"]
+    ])
+
+    matcher = RecordMatcher.new("email_or_phone", path)
+    matcher.match
+    
+    output = read_output(path.sub(".csv", "_with_user_ids.csv"))
+    expect(output[0]["user_id"]).to eq("1")
+    expect(output[1]["user_id"]).to eq("1")
+    expect(output[2]["user_id"]).to eq("2")
+    expect(output[3]["user_id"]).to eq("2")
   end
 
   it "raises an error for unsupported match types" do

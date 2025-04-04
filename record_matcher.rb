@@ -6,7 +6,7 @@ require 'pry'
 class RecordMatcher
 
   # I implemented this lambda table as a way around switch statements I had previously used.
-  # Arguments are always fed values from the csv, "matcher" is defined as use the correct lambda.
+  # Arguments are always fed values from the csv, "matcher" is defined as the correct lambda.
   MATCH_STRATEGIES = {
     email: ->(emails, phone_numbers) { emails },
     phone: ->(emails, phone_numbers) { phone_numbers },
@@ -83,6 +83,7 @@ class RecordMatcher
       phone_numbers = @phone_fields.map { |field| record[field] }.compact
   
       matcher.call(emails, phone_numbers).each do |val|
+        next if val.nil? || val.strip.empty?
         rows_by_value[val] << record
       end
     end
@@ -115,14 +116,15 @@ class RecordMatcher
         csv << headers.map { |h| r[h] }
       end
     end
-    
+
     puts "Wrote output to #{output_path}"
   end
 end
 
-  # Expect exactly two command-line arguments in order:
-  # - a match type (email, phone, or email_or_phone)
-  # - a CSV file path
+# Expect exactly two command-line arguments in order:
+# - a match type (email, phone, or email_or_phone)
+# - a CSV file path
+if __FILE__ == $0
   if ARGV.length != 2
     puts "Usage: ruby record_matcher.rb [email|phone|email_or_phone] path/to/file.csv"
     exit 1
@@ -131,4 +133,4 @@ end
   match_type, file_path = ARGV
   matcher = RecordMatcher.new(match_type, file_path)
   matcher.match
-  
+end
