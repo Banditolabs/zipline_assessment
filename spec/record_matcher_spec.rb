@@ -27,7 +27,7 @@ RSpec.describe RecordMatcher do
     CSV.read(file_path, headers: true).map(&:to_h)
   end
 
-  it "uses MATCH_STRATEGIES[:email] to group records by shared email values" do
+  it "groups records by shared email values" do
     path = File.join(tmp_dir, "emails.csv")
     write_csv(path, ["FirstName", "Email1"], [
       ["John", "john@example.com"],
@@ -45,7 +45,7 @@ RSpec.describe RecordMatcher do
     expect(output[2]["user_id"]).to be_nil
   end
 
-  it "uses MATCH_STRATEGIES[:phone] to group records by shared phone numbers" do
+  it "groups records by shared phone values" do
     path = File.join(tmp_dir, "phones.csv")
     write_csv(path, ["FirstName", "Phone1"], [
       ["Bob", "(555) 123-4567"],
@@ -63,7 +63,7 @@ RSpec.describe RecordMatcher do
     expect(output[2]["user_id"]).to be_nil
   end
 
-  it "uses MATCH_STRATEGIES[:email_or_phone] to group records by either value" do
+  it "groups records by shared email_or_phone values" do
     path = File.join(tmp_dir, "email_or_phone.csv")
     write_csv(path, ["FirstName", "Email1", "Phone1"], [
       ["John", "john@example.com", "1234567890"],
@@ -126,5 +126,21 @@ RSpec.describe RecordMatcher do
     expect {
       RecordMatcher.new("unsupported", path).match
     }.to raise_error(ArgumentError)
+  end
+
+  it "handles input CSVs with extra headers gracefully" do
+    path = File.join(tmp_dir, "extra_headers.csv")
+    write_csv(path, ["FirstName", "Email1", "ExtraInfo"], [
+      ["Alice", "alice@example.com", "notes about alice"],
+      ["Bob", "alice@example.com", "something else"]
+    ])
+  
+    matcher = RecordMatcher.new("email", path)
+    matcher.match
+  
+    output = read_output(path.sub(".csv", "_with_user_ids.csv"))
+    expect(output[0]["user_id"]).to eq("1")
+    expect(output[1]["user_id"]).to eq("1")
+    expect(output[0]["ExtraInfo"]).to eq("notes about alice")
   end
 end

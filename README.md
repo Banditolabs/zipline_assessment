@@ -21,7 +21,7 @@ bundle install
 bundle exec rspec
 ```
 
-To debug any part of your code, you can insert the following line:
+To debug any part of this code, you can insert the following line:
 
 ```bash
 binding.pry
@@ -32,7 +32,7 @@ binding.pry
 ```
 ruby record_matcher.rb email input1.csv
 ruby record_matcher.rb phone input2.csv
-ruby record_matcher.rb phone input3.csv
+ruby record_matcher.rb email_or_phone input3.csv
 ```
 
 Matching types can only be entered exactly **email**, **phone**, **email_or_phone**.
