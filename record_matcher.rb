@@ -5,6 +5,14 @@ require 'pry'
 # RecordMatcher reads a CSV and assigns user IDs to records that match by email and/or phone.
 class RecordMatcher
 
+  # I implemented this lambda table as a way around switch statements I had previously used.
+  # Arguments are always fed values from the csv, "matcher" is defined as the correct lambda.
+  MATCH_STRATEGIES = {
+    email: ->(emails, phone_numbers) { emails },
+    phone: ->(emails, phone_numbers) { phone_numbers },
+    email_or_phone: ->(emails, phone_numbers) { emails + phone_numbers }
+  }
+
   def initialize(match_type, file_path )
     @file_path = file_path
     @match_type = match_type.to_sym
@@ -13,7 +21,7 @@ class RecordMatcher
   end
 
   def match
-    normalize_records!
+    normalize_record_values!
     assign_user_ids!
     write_output_file
   end
@@ -42,8 +50,8 @@ class RecordMatcher
 
   # Normalize all phone and email values:
   # - emails are downcased and stripped
-  # - phones are stripped of all non-digit characters
-  def normalize_records!
+  # - phone_numbers are stripped of all non-digit characters
+  def normalize_record_values!
     @records.each do |record|
       @email_fields.each do |key|
         record[key] = record[key]&.strip&.downcase
@@ -54,48 +62,41 @@ class RecordMatcher
     end
   end
 
+  # Assigns user IDs to grouped records based on shared values (email, phone, or both).
+  # Uses a DisjointSet to connect records that share any normalized matching value.
+  # - Extract matching values from each record based on the match type.
+  # - Group records that share a value into the same connected component.
+  # - Assign a unique user ID to each connected group.
   def assign_user_ids!
-    # DisjointSet helps group records that are directly or indirectly connected.
-    # For example: if A matches B, and B matches C, then A, B, and C belong to the same group.
     ds = DisjointSet.new
 
-    # Map object IDs to their corresponding record hashes for later assignment
     record_ids = {}
     @records.each { |record| record_ids[record.object_id] = record }
 
-    # Index each normalized email or phone value → list of records that share it
-    value_to_records = Hash.new { |h, k| h[k] = [] }
+    rows_by_value = Hash.new { |h, k| h[k] = [] }
 
-    # extract any email or phone values, remove nil values
+    matcher = MATCH_STRATEGIES[@match_type]
+    raise ArgumentError, "Unsupported match type: #{@match_type}" unless matcher
+
     @records.each do |record|
       emails = @email_fields.map { |field| record[field] }.compact
-      phones = @phone_fields.map { |field| record[field] }.compact
-
-      # Populate the hash based on the selected match type; byEmail: value_to_records = { "john@example.com"   => [{rowData}, {rowData}], }
-      case @match_type
-      when :email
-        emails.each { |email| value_to_records[email] << record }
-      when :phone
-        phones.each { |phone| value_to_records[phone] << record }
-      when :email_or_phone
-        (emails + phones).each { |val| value_to_records[val] << record }
-      else
-        raise ArgumentError, "Unsupported match type: #{@match_type}. [email|phone|email_or_phone]"
+      phone_numbers = @phone_fields.map { |field| record[field] }.compact
+  
+      matcher.call(emails, phone_numbers).each do |val|
+        next if val.nil? || val.strip.empty?
+        rows_by_value[val] << record
       end
     end
 
-    # Union records that share the same matching value
-    value_to_records.each_value do |group|
-      next if group.size < 2
-      # For every pair in the group, mark them as connected in the disjoint set
-      group.combination(2).each do |a, b|
+    rows_by_value.each_value do |related_rows|
+      next if related_rows.size < 2
+      related_rows.combination(2).each do |a, b|
         ds.union(a.object_id, b.object_id)
       end
     end
 
-     # Assign user_id to each connected group of records
-    groups = ds.groups
-    groups.each_with_index do |group, idx|
+    related_object_id_list = ds.groups
+    related_object_id_list.each_with_index do |group, idx|
       user_id = idx + 1
       group.each do |oid|
         record_ids[oid][:user_id] = user_id  # {:firstname => "john", :email=>"john@example.com", :user_id=>1}
@@ -104,17 +105,13 @@ class RecordMatcher
   end
 
   def write_output_file
-    # Create a new filename based on the original
     output_path = @file_path.sub(/\.csv$/, "_with_user_ids.csv")
 
-    # Normalize the original CSV headers to match the internal format
     normalized_keys = @raw_headers.map { |h| h.strip.downcase.gsub(/\s+/, "_").to_sym }
     headers = [:user_id] + normalized_keys
 
     CSV.open(output_path, "w") do |csv|
-      # Write the header row using original column names
       csv << ['user_id'] + @raw_headers
-      # This ensures we preserve original column order and values.
       @records.each do |r|
         csv << headers.map { |h| r[h] }
       end
@@ -122,4 +119,18 @@ class RecordMatcher
 
     puts "Wrote output to #{output_path}"
   end
+end
+
+# Expect exactly two command-line arguments in order:
+# - a match type (email, phone, or email_or_phone)
+# - a CSV file path
+if __FILE__ == $0
+  if ARGV.length != 2
+    puts "Usage: ruby record_matcher.rb [email|phone|email_or_phone] path/to/file.csv"
+    exit 1
+  end
+
+  match_type, file_path = ARGV
+  matcher = RecordMatcher.new(match_type, file_path)
+  matcher.match
 end
