@@ -12,6 +12,21 @@ The program is executed from the command line like so:
 ruby record_matcher.rb <matching_type> <input_filename.csv>
 ```
 
+### Running Tests and Debugging
+
+This project uses [RSpec](https://rspec.info/) for testing. To run the test suite:
+
+```bash
+bundle install
+bundle exec rspec
+```
+
+To debug any part of your code, you can insert the following line:
+
+```bash
+binding.pry
+```
+
 ### Examples
 
 ```
